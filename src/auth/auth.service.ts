@@ -32,6 +32,9 @@ export class AuthService {
           password: hashed ?? null,
         },
       });
+      if (user.email) {
+  await this.sendOtpEmail(user);
+}
       return user;
     });
   }
@@ -123,5 +126,31 @@ export class AuthService {
       context: { name: user.name, code },
     });
   }
+
+  async sendOtpEmail(user: any) {
+  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+  const expiresAt = addSeconds(new Date(), 120); // 2 minutes expiry
+
+  // save OTP in DB (you may have otp table)
+  await this.prisma.otp.create({
+    data: {
+      userId: user.id,
+      code,
+      expiresAt,
+      type: 'EMAIL',
+    },
+  });
+
+  // send OTP email
+  await this.mailService.sendEmailOtp({
+    to: user.email,
+    subject: 'Verify Your Email',
+    template: 'email-verification',
+    context: { name: user.name || 'User', code },
+  });
+
+  return { message: 'OTP sent' };
+}
+
 }
 

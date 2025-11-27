@@ -1,39 +1,76 @@
-// src/mail/mail.service.ts
-import { Injectable } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Injectable, Logger } from '@nestjs/common';
+import nodemailer from 'nodemailer';
+import hbs from 'nodemailer-express-handlebars';
+import * as path from 'path';
 
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
+  private readonly logger = new Logger(MailService.name);
+
   constructor() {
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: false,
+      host: process.env.MAIL_HOST,
+      port: parseInt(process.env.MAIL_PORT || '587', 10),
+      secure: process.env.MAIL_SECURE === 'true',
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
       },
     });
+
+    // Attach Handlebars template engine
+    this.transporter.use(
+      'compile',
+      hbs({
+        viewEngine: {
+          partialsDir: path.resolve('./src/mail/templates/'),
+          defaultLayout: false,
+        },
+        viewPath: path.resolve('./src/mail/templates/'),
+        extName: '.hbs',
+      }),
+    );
   }
 
-  async sendEmailOtp(to: string, otp: string) {
-    const subject = 'Your Rabixx verification code';
-    const text = `Your code is ${otp}. It expires in ${process.env.OTP_EXPIRY_SECONDS || 120} seconds.`;
-    await this.transporter.sendMail({
-      from: process.env.SMTP_USER,
-      to,
-      subject,
-      text,
-    });
+  async sendMail(options: {
+    to: string;
+    subject: string;
+    template?: string;
+    context?: Record<string, any>;
+    text?: string;
+    html?: string;
+  }) {
+    try {
+      const info = await this.transporter.sendMail({
+        from: process.env.MAIL_FROM!,
+        to: options.to,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+        template: options.template, // template filename without .hbs
+        context: options.context,   // variables for template
+      });
+      this.logger.log(`Mail sent: ${info.messageId}`);
+    } catch (err) {
+      this.logger.error('Error sending email', err);
+      throw err;
+    }
   }
 
-  async sendGenericMail(to: string, subject: string, html: string) {
-    await this.transporter.sendMail({
-      from: process.env.SMTP_USER,
-      to,
-      subject,
-      html,
-    });
-  }
+  // src/mail/mail.service.ts
+async sendEmailOtp(options: {
+  to: string;
+  subject: string;
+  template: string;
+  context: Record<string, any>;
+}) {
+  return this.sendMail({
+    to: options.to,
+    subject: options.subject,
+    template: options.template,
+    context: options.context,
+  });
+}
+
 }
