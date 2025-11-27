@@ -33,7 +33,11 @@ export class AuthService {
         },
       });
       if (user.email) {
-  await this.sendOtpEmail(user);
+  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+  await this.prisma.emailOTP.create({
+    data: { userId: user.id, otp: code, expiresAt: addSeconds(new Date(), 600) }, // 10 min expiry
+  });
+  await this.sendEmailVerification(user, code);
 }
       return user;
     });

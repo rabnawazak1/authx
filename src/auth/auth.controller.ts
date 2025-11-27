@@ -213,4 +213,21 @@ export class AuthController {
     }
     throw new BadRequestException('Refresh token not found');
   }
+
+  @Post('verify/email')
+async verifyEmailOtp(@Body() body: { email: string; code: string }) {
+  const user = await this.userService.findByEmail(body.email);
+  if (!user) throw new BadRequestException('User not found');
+
+  const otpRecord = await this.prisma.emailOTP.findFirst({
+    where: { userId: user.id, otp: body.code, used: false },
+  });
+
+  if (!otpRecord) throw new BadRequestException('Invalid OTP');
+  if (otpRecord.expiresAt < new Date()) throw new BadRequestException('OTP expired');
+
+  await this.prisma.emailOTP.update({ where: { id: otpRecord.id }, data: { used: true } });
+
+  return { message: 'Email verified successfully' };
+}
 }

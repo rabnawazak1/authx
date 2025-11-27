@@ -59,18 +59,33 @@ export class MailService {
   }
 
   // src/mail/mail.service.ts
-async sendEmailOtp(options: {
-  to: string;
-  subject: string;
-  template: string;
-  context: Record<string, any>;
-}) {
-  return this.sendMail({
-    to: options.to,
-    subject: options.subject,
-    template: options.template,
-    context: options.context,
-  });
+// async sendEmailOtp(options: {
+//   to: string;
+//   subject: string;
+//   template: string;
+//   context: Record<string, any>;
+// }) {
+//   return this.sendMail({
+//     to: options.to,
+//     subject: options.subject,
+//     template: options.template,
+//     context: options.context,
+//   });
+// }
+
+async sendEmailOtp(options: { to: string; subject: string; template: string; context: any }) {
+  const html = this.renderTemplate(options.template, options.context);
+  await this.sendMail({ to: options.to, subject: options.subject, html });
+}
+
+private renderTemplate(template: string, context: any) {
+  // simple string interpolation for now
+  if (template === 'email-verification') {
+    return `<p>Hello ${context.name},</p>
+            <p>Your OTP is <b>${context.code}</b></p>
+            <p>This code will expire in 10 minutes.</p>`;
+  }
+  return '';
 }
 
 }
