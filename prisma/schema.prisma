@@ -1,0 +1,78 @@
+// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["referentialActions"]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id               String          @id @default(uuid())
+  email            String?         
+  phone            String?         
+  password         String?         
+  isEmailVerified  Boolean         @default(false)
+  isPhoneVerified  Boolean         @default(false)
+  role             Role            @default(USER)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?       
+  emailOtps        EmailOTP[]      
+  phoneOtps        PhoneOTP[]      
+  refreshTokens    RefreshToken[]  
+
+  @@unique([email], name: "unique_email")
+  @@unique([phone], name: "unique_phone")
+  @@index([role])
+}
+
+model EmailOTP {
+  id            String   @id @default(uuid())
+  userId        String
+  otpHash       String
+  expiresAt     DateTime
+  attempts      Int      @default(0)
+  createdAt     DateTime @default(now())
+  used          Boolean  @default(false)
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PhoneOTP {
+  id            String   @id @default(uuid())
+  userId        String
+  otpHash       String
+  expiresAt     DateTime
+  attempts      Int      @default(0)
+  createdAt     DateTime @default(now())
+  used          Boolean  @default(false)
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id            String   @id @default(uuid())
+  userId        String
+  tokenHash     String
+  createdAt     DateTime @default(now())
+  revoked       Boolean  @default(false)
+  replacedById  String?  
+  expiresAt     DateTime
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([revoked])
+}
